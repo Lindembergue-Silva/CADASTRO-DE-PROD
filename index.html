@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="App de Cadastro de Produtos">
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.png" type="image/png">
+
+
+    <title>Cadastro de Produtos</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; }
+        header { text-align: center; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #4CAF50; color: white; }
+        input, button { padding: 10px; margin: 5px; }
+        #total { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cadastro de Produtos</h1>
+        <p>App de cadastro offline e instalável</p>
+    </header>
+
+    <!-- Formulário para cadastro de produtos -->
+    <section>
+        <input type="text" id="productName" placeholder="Nome do Produto" required>
+        <input type="number" id="productPrice" placeholder="Preço do Produto" required>
+        <button onclick="addProduct()">Adicionar Produto</button>
+    </section>
+
+    <!-- Tabela de produtos -->
+    <section>
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Preço</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="productList"></tbody>
+        </table>
+        <p>Total: <span id="total">0</span></p>
+    </section>
+
+    <script>
+        let products = [];
+
+        // IndexedDB para salvar dados offline
+        let db;
+        const request = indexedDB.open("ProductDB", 1);
+        request.onsuccess = event => {
+            db = event.target.result;
+            loadProducts();
+        };
+        request.onupgradeneeded = event => {
+            db = event.target.result;
+            db.createObjectStore("products", { keyPath: "id", autoIncrement: true });
+        };
+
+        // Função para adicionar produto
+        function addProduct() {
+            const name = document.getElementById('productName').value;
+            const price = parseFloat(document.getElementById('productPrice').value);
+            if (name && !isNaN(price)) {
+                const product = { name, price };
+                products.push(product);
+                updateTotal();
+                displayProducts();
+                saveProduct(product);
+            }
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+        }
+
+        // Atualizar o total
+        function updateTotal() {
+            const total = products.reduce((sum, product) => sum + product.price, 0);
+            document.getElementById('total').innerText = total.toFixed(2);
+        }
+
+        // Exibir produtos na tabela
+        function displayProducts() {
+            const tbody = document.getElementById('productList');
+            tbody.innerHTML = '';
+            products.forEach((product, index) => {
+                tbody.innerHTML += `<tr>
+                    <td>${product.name}</td>
+                    <td>${product.price.toFixed(2)}</td>
+                    <td>
+                        <button onclick="editProduct(${index})">Editar</button>
+                        <button onclick="deleteProduct(${index})">Excluir</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // Função para editar produto
+        function editProduct(index) {
+            const name = prompt("Novo nome do produto:", products[index].name);
+            const price = parseFloat(prompt("Novo preço do produto:", products[index].price));
+            if (name && !isNaN(price)) {
+                products[index] = { ...products[index], name, price };
+                updateTotal();
+                displayProducts();
+                updateProductInDB(products[index]);
+            }
+        }
+
+        // Função para excluir produto
+        function deleteProduct(index) {
+            const productId = products[index].id;
+            products.splice(index, 1);
+            updateTotal();
+            displayProducts();
+            deleteProductFromDB(productId);
+        }
+
+        // Salvar produto no IndexedDB
+        function saveProduct(product) {
+            const transaction = db.transaction("products", "readwrite");
+            const store = transaction.objectStore("products");
+            store.add(product);
+        }
+
+        // Atualizar produto no IndexedDB
+        function updateProductInDB(product) {
+            const transaction = db.transaction("products", "readwrite");
+            const store = transaction.objectStore("products");
+            store.put(product);
+        }
+
+        // Excluir produto do IndexedDB
+        function deleteProductFromDB(id) {
+            const transaction = db.transaction("products", "readwrite");
+            const store = transaction.objectStore("products");
+            store.delete(id);
+        }
+
+        // Carregar produtos do IndexedDB
+        function loadProducts() {
+            const transaction = db.transaction("products", "readonly");
+            const store = transaction.objectStore("products");
+            const request = store.getAll();
+            request.onsuccess = () => {
+                products = request.result;
+                updateTotal();
+                displayProducts();
+            };
+        }
+
+        // PWA - registrar service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => {
+                console.log("Service Worker registrado com sucesso!");
+            });
+        }
+    </script>
+</body>
+</html>
