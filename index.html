@@ -94,7 +94,8 @@
                     <td>${product.price.toFixed(2)}</td>
                     <td>
                         <button onclick="editProduct(${index})">Editar</button>
-                        <button onclick="deleteProduct(${index})">Excluir</button>
+                       <button onclick="confirmDelete(${index})">Excluir</button>
+
                     </td>
                 </tr>`;
             });
@@ -111,6 +112,12 @@
                 updateProductInDB(products[index]);
             }
         }
+// Função para confirmar e excluir produto
+function confirmDelete(index) {
+    if (confirm("Tem certeza de que deseja excluir este produto?")) {
+        deleteProduct(index);
+    }
+}
 
         // Função para excluir produto
         function deleteProduct(index) {
